@@ -1,0 +1,31 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Build and push Docker image
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/wisecow-app:latest . && docker push ${{ secrets.DOCKER_USERNAME }}/wisecow-app:latest
+      - name: Deploy to Kubernetes
+        uses: kubectl/kubectl@v1.5.0
+        with:
+          uses: kubernetes-clientset
+          kubernetes-as-factory: true
+          load-credentials: true
+          configuration-path: ~/.kube/config
+        env:
+          KUBECTL_URL: https://your-kubernetes-api-server
+          ACCESS_TOKEN: ${{ secrets.KUBE_ACCESS_TOKEN }}
+        run: |
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml
